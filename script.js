@@ -1,0 +1,178 @@
+DROP DATABASE ALKEWALLET;
+
+CREATE DATABASE IF NOT EXISTS  ALKEWALLET;
+USE ALKEWALLET;
+
+/*Mantención de la integridad de los los datos con sentencias NOT NULL, UNIQUE, CHECK */
+/*Creación de tabla "Usuario" */
+CREATE TABLE Usuario (
+User_id INT PRIMARY KEY auto_increment,
+Nombre VARCHAR(50) NOT NULL,
+Correo_electrónico VARCHAR(200) NOT NULL UNIQUE,
+Contrasena VARCHAR(15) NOT NULL,
+Saldo DECIMAL (10,2) NOT NULL,
+CHECK (LENGTH(contrasena)>= 4 AND LENGTH(contrasena)<=6)
+);
+
+/*Creación de tabla "Moneda" */
+CREATE TABLE Moneda (
+Currency_id INT PRIMARY KEY auto_increment,
+Currency_name VARCHAR (100) NOT NULL,
+Currency_symbol VARCHAR (10) NOT NULL
+);
+
+/*Crear tabla "Transacción"*/
+CREATE TABLE Transaccion (
+Transaccion_id INT PRIMARY KEY auto_increment,
+Importe DECIMAL (10,2) NOT NULL,
+transaction_date DATE NOT NULL,
+Sender_User_Id INT NOT NULL,
+Receiver_User_Id INT NOT NULL,
+Currency_id INT NOT NULL,
+FOREIGN KEY (Sender_User_Id) REFERENCES Usuario (User_id),
+FOREIGN KEY (Receiver_User_Id) REFERENCES Usuario (User_id),
+FOREIGN KEY (Currency_id) REFERENCES Moneda (Currency_id));
+
+/*Tabla relacional "Usuario-Moneda"*/
+CREATE TABLE Billetera (
+Billetera_id INT PRIMARY KEY auto_increment,
+UserBill_id INT NOT NULL,
+Moneda_id INT NOT NULL,
+FOREIGN KEY (UserBill_id) REFERENCES Usuario(User_id),
+FOREIGN KEY (Moneda_id) REFERENCES Moneda (Currency_id));
+
+/* Ingresar datos a usuario*/
+INSERT INTO Usuario (User_id,Nombre,Correo_electrónico,Contrasena,Saldo)
+VALUES  (1,'Juan','juan@example.com','1234',500.00),
+    (2,'Luis','luis@example.com','4321',10000.00),
+        (3,'Maria','maria@example.com','1357',700.00),
+        (4,'Melissa','melissa@example.com','2468',0.00),
+    (5,'Esteban','esteban@example.com','3579',300000.00);
+
+/* Ingresar datos a tabla Moneda*/
+INSERT INTO Moneda (Currency_id,Currency_name,Currency_symbol)
+VALUES  (1,'Peso_clp','$'),
+    (2,'Dolar','$'),
+        (3,'Euro','Є');
+
+/* Ingresar datos a tabla Transacción*/        
+INSERT INTO Transaccion (Importe, transaction_date, Sender_User_Id, Receiver_User_Id, Currency_id)
+VALUES (100.00,'2024-04-02',1,2,1),
+     (100000.00,'2024-03-25',5,4,2),
+       (500.00,'2024-03-10',3,2,3),
+       (1500.00,'2024-03-01',2,3,3),
+       (0.00,'2024-02-21',4,1,1);
+
+       /* La transaccion 1 dice que Juan transfiere a Luis 100 pesos clp en la fecha 02-04-2024
+       Juan (1): saldo inicial 500  Transacción 1: saldo=500 pesos (clp) -100=400 pesos (clp) al 02-04-2024
+       Luis (2): saldo inicial 10000 Transaccion 1: saldo=10000 pesos +100=10100 pesos al 02-04-2024 */
+
+/* Creación de tabla Billetera: se barajaron opciones de dependencia de la tabla Moneda a tabla Usuarios
+a traves de llaves. Sin embargo, se optó dado la relación de Muchos a Muchos, insertar una tabla de nombre
+"Billetera" que tradujera el proceso y que además, facilitara las consultas.
+
+ Ingresar datos a tabla Billetera*/       
+INSERT INTO Billetera (UserBill_id, Moneda_id)
+VALUES  (1,1),(2,1),(3,1),(4,1),(5,1),		/*La billetera asocia a cada uno de los 5 usuarios a cada una de */
+    (1,2),(2,2),(3,2),(4,2),(5,2),		/*las tres divisas*/
+        (1,3),(2,3),(3,3),(4,3),(5,3);
+
+/* 1.- Consulta para obtener el nombre de la moneda elegida por un
+usuario específico*/
+
+SELECT U_sender.Nombre AS sender_name, /* Se considera al usuario (1) Juan quien envia dinero en (clp)*/
+       M.currency_name
+FROM Transaccion T
+INNER JOIN Usuario U_sender ON T.sender_user_id = U_sender.user_id
+INNER JOIN Moneda M ON T.currency_id = M.currency_id
+WHERE U_sender.user_id = 1;
+
+/* 2.- Consulta para obtener las transacciones realizadas por un usuario
+específico*/
+SELECT T.transaccion_id,                /*Se considera al usuario (1) Juan quien envia dinero */
+       U_sender.Nombre AS sender_name,
+       T.importe,
+       M.currency_name,
+       T.transaction_date
+FROM Transaccion T
+INNER JOIN Usuario U_sender ON T.sender_user_id = U_sender.user_id
+INNER JOIN Moneda M ON T.currency_id = M.currency_id
+WHERE U_sender.user_id = 1;
+
+/*Nota: Consulta 2 = Consulta 6. De acuerdo a consulta en clases, hay que eliminar una de ellas */
+
+/* 3.- Consulta para obtener todos los usuarios registrados*/
+SELECT Nombre FROM Usuario;
+
+/* 4.- Consulta para obtener todas las monedas registradas*/
+SELECT Currency_name FROM Moneda;
+
+/* 5.- Consulta para obtener todas las transacciones registradas*/
+SELECT COUNT(Transaccion_id) FROM Transaccion;    /* Se realizan 5 transacciones*/
+SELECT T.transaccion_id,						  /* Obtención de los datos de las 5 transacciones*/
+       U_sender.Nombre AS sender_name,
+       U_receiver.Nombre AS receiver_name,
+       T.importe,
+       M.currency_name,
+       T.transaction_date
+FROM Transaccion T
+INNER JOIN Usuario U_sender ON T.sender_user_id = U_sender.user_id
+INNER JOIN Usuario U_receiver ON T.receiver_user_id = U_receiver.user_id		
+INNER JOIN Moneda M ON T.currency_id = M.currency_id;
+
+/* 6.- Consulta para obtener todas las transacciones realizadas por un
+usuario específico*/
+SELECT T.transaccion_id,						  
+       U_sender.Nombre AS sender_name,
+       U_receiver.Nombre AS receiver_name,
+       T.importe,
+       M.currency_name,
+       T.transaction_date
+FROM Transaccion T
+INNER JOIN Usuario U_sender ON T.sender_user_id = U_sender.user_id
+INNER JOIN Usuario U_receiver ON T.receiver_user_id = U_receiver.user_id		
+INNER JOIN Moneda M ON T.currency_id = M.currency_id
+WHERE U_sender.user_id = 1;
+
+/* 7.- Consulta para obtener todas las transacciones recibidas por un
+usuario específico*/
+SELECT T.transaccion_id,						  /*Se selecciona a (2) Luis quien tiene dos transacciones*/
+       U_receiver.Nombre AS receiver_name,       /*como receptor desde Juan y Maria*/
+       U_sender.Nombre AS sender_name,
+       T.importe,
+       M.currency_name,
+       T.transaction_date
+FROM Transaccion T
+INNER JOIN Usuario U_sender ON T.sender_user_id = U_sender.user_id
+INNER JOIN Usuario U_receiver ON T.receiver_user_id = U_receiver.user_id		
+INNER JOIN Moneda M ON T.currency_id = M.currency_id
+WHERE U_receiver.user_id = 2;
+
+/* 8.- Sentencia DML para modificar el campo correo electrónico de un
+usuario específico*/
+UPDATE Usuario					/*Selecciono a Esteban (5) para cambiar el mail esteban@example.com*/
+SET Correo_electrónico = 'esteban.ross@gmail.com'
+WHERE User_id = 5;
+                /*Verifico*/
+SELECT Nombre, Email FROM Usuario;
+
+/*Nota: al realizar Select, debo cambiar el nombre de la columna Correo_electrónico por Email
+        dado que una sentencia posterior cambió su nombre. Se observa cambio de mail esteban@example.com
+        por esteban.ross@gmail.com*/
+
+/* 9.- Sentencia para eliminar los datos de una transacción (eliminado de
+la fila completa)
+*/
+DELETE FROM Transaccion WHERE Transaccion_id = 1;	/*ejemplo (100.00, '2024-04-01', 1, 2, 2)*/
+                /*Verifico*/
+SELECT * FROM Transacción;
+/*Nota: no se aplica la funcion DELETE para no modificar la base de datos. Expuesto en clases*/
+
+/* 10.- Sentencia para DDL modificar el nombre de la columna
+correo_electronico por email
+*/
+ALTER TABLE Usuario 
+CHANGE COLUMN Correo_electrónico Email VARCHAR(200) NOT NULL; /*Se aplica cambio de nombre de columna
+                                "Correo_electrónico" por el de "Email"*/
+                /*Verifico*/
+SELECT * FROM Usuario;                       
